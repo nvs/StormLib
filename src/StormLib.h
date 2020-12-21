@@ -479,8 +479,8 @@ typedef void (WINAPI * SFILE_DOWNLOAD_CALLBACK)(void * pvUserData, ULONGLONG Byt
 typedef void (WINAPI * SFILE_ADDFILE_CALLBACK)(void * pvUserData, DWORD dwBytesWritten, DWORD dwTotalBytes, bool bFinalCall);
 typedef void (WINAPI * SFILE_COMPACT_CALLBACK)(void * pvUserData, DWORD dwWorkType, ULONGLONG BytesProcessed, ULONGLONG TotalBytes);
 
-struct TFileStream;
-struct TMPQBits;
+typedef struct TFileStream TFileStream;
+typedef struct TMPQBits TMPQBits;
 
 //-----------------------------------------------------------------------------
 // Structures related to MPQ format
