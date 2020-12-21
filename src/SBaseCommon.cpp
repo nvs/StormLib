@@ -95,11 +95,13 @@ unsigned char AsciiToUpperTable_Slash[256] =
 //-----------------------------------------------------------------------------
 // Safe string functions (for ANSI builds)
 
-void StringCopy(char * szTarget, size_t cchTarget, const char * szSource)
+char * StringCopy(char * szTarget, size_t cchTarget, const char * szSource)
 {
+    size_t cchSource = 0;
+
     if(cchTarget > 0)
     {
-        size_t cchSource = strlen(szSource);
+        cchSource = strlen(szSource);
 
         if(cchSource >= cchTarget)
             cchSource = cchTarget - 1;
@@ -107,6 +109,8 @@ void StringCopy(char * szTarget, size_t cchTarget, const char * szSource)
         memcpy(szTarget, szSource, cchSource);
         szTarget[cchSource] = 0;
     }
+
+    return szTarget + cchSource;
 }
 
 void StringCat(char * szTarget, size_t cchTargetMax, const char * szSource)
@@ -119,6 +123,26 @@ void StringCat(char * szTarget, size_t cchTargetMax, const char * szSource)
     {
         StringCopy(szTarget + cchTarget, (cchTargetMax - cchTarget), szSource);
     }
+}
+
+void StringCreatePseudoFileName(char * szBuffer, size_t cchMaxChars, unsigned int nIndex, const char * szExtension)
+{
+    char * szBufferEnd = szBuffer + cchMaxChars;
+
+    // "File"
+    szBuffer = StringCopy(szBuffer, (szBufferEnd - szBuffer), "File");
+
+    // Number
+    szBuffer = IntToString(szBuffer, szBufferEnd - szBuffer + 1, nIndex, 8);
+
+    // Dot
+    if(szBuffer < szBufferEnd)
+        *szBuffer++ = '.';
+
+    // Extension
+    while(szExtension[0] == '.')
+        szExtension++;
+    StringCopy(szBuffer, (szBufferEnd - szBuffer), szExtension);
 }
 
 //-----------------------------------------------------------------------------
@@ -921,6 +945,7 @@ void * LoadMpqTable(
         // On archives v 1.0, hash table and block table can go beyond EOF.
         // Storm.dll reads as much as possible, then fills the missing part with zeros.
         // Abused by Spazzler map protector which sets hash table size to 0x00100000
+        // Abused by NP_Protect in MPQs v4 as well
         if(ha->pHeader->wFormatVersion == MPQ_FORMAT_VERSION_1)
         {
             // Cut the table size
@@ -937,7 +962,7 @@ void * LoadMpqTable(
             }
         }
 
-        // If everything succeeded, read the raw table form the MPQ
+        // If everything succeeded, read the raw table from the MPQ
         if(FileStream_Read(ha->pStream, &ByteOffset, pbToRead, dwBytesToRead))
         {
             // First of all, decrypt the table
@@ -1376,7 +1401,6 @@ int WriteSectorOffsets(TMPQFile * hf)
     return ERROR_SUCCESS;
 }
 
-
 int WriteSectorChecksums(TMPQFile * hf)
 {
     TMPQArchive * ha = hf->ha;
@@ -1714,7 +1738,7 @@ void CalculateDataBlockHash(void * pvDataBlock, DWORD cbDataBlock, LPBYTE md5_ha
 //-----------------------------------------------------------------------------
 // Swapping functions
 
-#ifndef PLATFORM_LITTLE_ENDIAN
+#ifndef STORMLIB_LITTLE_ENDIAN
 
 //
 // Note that those functions are implemented for Mac operating system,
@@ -1839,4 +1863,4 @@ void ConvertTMPQHeader(void *header, uint16_t version)
     }
 }
 
-#endif  // PLATFORM_LITTLE_ENDIAN
+#endif  // STORMLIB_LITTLE_ENDIAN

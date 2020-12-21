@@ -36,7 +36,7 @@
 //-----------------------------------------------------------------------------
 // Defines for Windows
 
-#if !defined(PLATFORM_DEFINED) && defined(_WIN32)
+#if !defined(STORMLIB_PLATFORM_DEFINED) && defined(_WIN32)
 
   // In MSVC 8.0, there are some functions declared as deprecated.
   #if _MSC_VER >= 1400
@@ -54,23 +54,25 @@
   #include <windows.h>
 
   #include <wininet.h>
-  #define PLATFORM_LITTLE_ENDIAN
+  #define STORMLIB_LITTLE_ENDIAN
 
   #ifdef _WIN64
-    #define PLATFORM_64BIT
+    #define STORMLIB_64BIT
   #else
-    #define PLATFORM_32BIT
+    #define STORMLIB_32BIT
   #endif
 
-  #define PLATFORM_WINDOWS
-  #define PLATFORM_DEFINED                  // The platform is known now
+  #define STORMLIB_CDECL __cdecl
+
+  #define STORMLIB_WINDOWS
+  #define STORMLIB_PLATFORM_DEFINED             // The platform is known now
 
 #endif
 
 //-----------------------------------------------------------------------------
 // Defines for Mac
 
-#if !defined(PLATFORM_DEFINED) && defined(__APPLE__)  // Mac BSD API
+#if !defined(STORMLIB_PLATFORM_DEFINED) && defined(__APPLE__)  // Mac BSD API
 
   // Macintosh
   #include <sys/types.h>
@@ -92,15 +94,15 @@
   #define    __SYS_BZLIB
 
   #ifndef __BIG_ENDIAN__
-    #define PLATFORM_LITTLE_ENDIAN
+    #define STORMLIB_LITTLE_ENDIAN
   #endif
 
-  #define PLATFORM_MAC
-  #define PLATFORM_DEFINED                  // The platform is known now
+  #define STORMLIB_MAC
+  #define STORMLIB_PLATFORM_DEFINED                  // The platform is known now
 
 #endif
 
-#if !defined(PLATFORM_DEFINED) && defined(__HAIKU__)
+#if !defined(STORMLIB_PLATFORM_DEFINED) && defined(__HAIKU__)
 
   #include <sys/types.h>
   #include <sys/stat.h>
@@ -117,18 +119,18 @@
   #include <errno.h>
 
   #ifndef __BIG_ENDIAN__
-    #define PLATFORM_LITTLE_ENDIAN
+    #define STORMLIB_LITTLE_ENDIAN
   #endif
 
-  #define PLATFORM_HAIKU
-  #define PLATFORM_DEFINED                  // The platform is known now
+  #define STORMLIB_HAIKU
+  #define STORMLIB_PLATFORM_DEFINED                  // The platform is known now
 
 #endif
 
 //-----------------------------------------------------------------------------
 // Assumption: we are not on Windows nor Macintosh, so this must be linux *grin*
 
-#if !defined(PLATFORM_DEFINED)
+#if !defined(STORMLIB_PLATFORM_DEFINED)
 
   #include <sys/types.h>
   #include <sys/stat.h>
@@ -145,21 +147,24 @@
   #include <assert.h>
   #include <errno.h>
 
-  #define PLATFORM_LITTLE_ENDIAN
-  #define PLATFORM_LINUX
-  #define PLATFORM_DEFINED
+  #define STORMLIB_LITTLE_ENDIAN
+  #define STORMLIB_LINUX
+  #define STORMLIB_PLATFORM_DEFINED
 
 #endif
 
 //-----------------------------------------------------------------------------
 // Definition of Windows-specific types for non-Windows platforms
 
-#ifndef PLATFORM_WINDOWS
+#ifndef STORMLIB_WINDOWS
   #if __LP64__
-    #define PLATFORM_64BIT
+    #define STORMLIB_64BIT
   #else
-    #define PLATFORM_32BIT
+    #define STORMLIB_32BIT
   #endif
+
+  // __cdecl meand nothing on non-Windows
+  #define STORMLIB_CDECL /* */
 
   // Typedefs for ANSI C
   typedef unsigned char  BYTE;
@@ -183,7 +188,7 @@
   typedef char         * LPTSTR;
   typedef char         * LPSTR;
 
-  #ifdef PLATFORM_32BIT
+  #ifdef STORMLIB_32BIT
     #define _LZMA_UINT32_IS_ULONG
   #endif
 
@@ -220,10 +225,10 @@
   #define _tcsicmp  strcasecmp
   #define _tcsnicmp strncasecmp
 
-#endif // !PLATFORM_WINDOWS
+#endif // !STORMLIB_WINDOWS
 
 // 64-bit calls are supplied by "normal" calls on Mac
-#if defined(PLATFORM_MAC) || defined(PLATFORM_HAIKU)
+#if defined(STORMLIB_MAC) || defined(STORMLIB_HAIKU)
   #define stat64  stat
   #define fstat64 fstat
   #define lseek64 lseek
@@ -233,7 +238,7 @@
 #endif
 
 // Platform-specific error codes for UNIX-based platforms
-#if defined(PLATFORM_MAC) || defined(PLATFORM_LINUX) || defined(PLATFORM_HAIKU)
+#if defined(STORMLIB_MAC) || defined(STORMLIB_LINUX) || defined(STORMLIB_HAIKU)
   #define ERROR_SUCCESS                  0
   #define ERROR_FILE_NOT_FOUND           ENOENT
   #define ERROR_ACCESS_DENIED            EPERM
@@ -241,7 +246,7 @@
   #define ERROR_NOT_ENOUGH_MEMORY        ENOMEM
   #define ERROR_NOT_SUPPORTED            ENOTSUP
   #define ERROR_INVALID_PARAMETER        EINVAL
-  #define ERROR_NEGATIVE_SEEK            EINVAL
+  #define ERROR_NEGATIVE_SEEK            ESPIPE
   #define ERROR_DISK_FULL                ENOSPC
   #define ERROR_ALREADY_EXISTS           EEXIST
   #define ERROR_INSUFFICIENT_BUFFER      ENOBUFS
@@ -255,7 +260,7 @@
 //-----------------------------------------------------------------------------
 // Swapping functions
 
-#ifdef PLATFORM_LITTLE_ENDIAN
+#ifdef STORMLIB_LITTLE_ENDIAN
     #define    BSWAP_INT16_UNSIGNED(a)          (a)
     #define    BSWAP_INT16_SIGNED(a)            (a)
     #define    BSWAP_INT32_UNSIGNED(a)          (a)

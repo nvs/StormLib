@@ -17,7 +17,7 @@
 // Listfile entry structure
 
 #define CACHE_BUFFER_SIZE  0x1000       // Size of the cache buffer
-#define MAX_LISTFILE_SIZE  0x04000000   // Maximum accepted listfile size is about 68 MB
+#define MAX_LISTFILE_SIZE  0x8000000    // Maximum accepted listfile size is 128 MB
 
 union TListFileHandle
 {
@@ -41,6 +41,9 @@ typedef bool (*LOAD_LISTFILE)(TListFileHandle * pHandle, void * pvBuffer, DWORD 
 
 //-----------------------------------------------------------------------------
 // Local functions (cache)
+
+// In SFileFindFile.cll
+bool SFileCheckWildCard(const char * szString, const char * szWildCard);
 
 static char * CopyListLine(char * szListLine, const char * szFileName)
 {
@@ -145,6 +148,10 @@ static TListFileCache * CreateListFileCache(
     TListFileCache * pCache = NULL;
     TListFileHandle ListHandle = {NULL};
 
+    // Put default value to dwMaxSize
+    if(dwMaxSize == 0)
+        dwMaxSize = MAX_LISTFILE_SIZE;
+
     // Internal listfile: hMPQ must be non NULL and szListFile must be NULL.
     // We load the MPQ::(listfile) file
     if(hMpq != NULL && szListFile == NULL)
@@ -178,7 +185,7 @@ static TListFileCache * CreateListFileCache(
         {
             // Verify the file size
             FileStream_GetSize(ListHandle.pStream, &FileSize);
-            if(0 < FileSize && FileSize < MAX_LISTFILE_SIZE)
+            if(0 < FileSize && FileSize < dwMaxSize)
             {
                 pCache = CreateListFileCache(LoadListFile_Stream, &ListHandle, szWildCard, (DWORD)FileSize, dwMaxSize, dwFlags);
             }
@@ -289,7 +296,7 @@ static char * ReadListFileLine(TListFileCache * pCache, size_t * PtrLength)
     return (char *)pbLineBegin;
 }
 
-static int CompareFileNodes(const void * p1, const void * p2) 
+static int STORMLIB_CDECL CompareFileNodes(const void * p1, const void * p2) 
 {
     char * szFileName1 = *(char **)p1;
     char * szFileName2 = *(char **)p2;
@@ -579,7 +586,7 @@ static bool DoListFileSearch(TListFileCache * pCache, SFILE_FIND_DATA * lpFindFi
         while((szFileName = ReadListFileLine(pCache, &nLength)) != NULL)
         {
             // Check search mask
-            if(nLength != 0 && CheckWildCard(szFileName, pCache->szWildCard))
+            if(nLength != 0 && SFileCheckWildCard(szFileName, pCache->szWildCard))
             {
                 if(nLength >= sizeof(lpFindFileData->cFileName))
                     nLength = sizeof(lpFindFileData->cFileName) - 1;

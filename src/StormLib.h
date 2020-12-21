@@ -105,32 +105,34 @@ extern "C" {
 #endif
 
 #if defined(_MSC_VER) && !defined(STORMLIB_NO_AUTO_LINK)
-  #ifdef _DEBUG                                 // DEBUG VERSIONS
-    #ifndef _UNICODE                            
-      #ifdef _DLL                               
-        #pragma comment(lib, "StormLibDAD.lib") // Debug Ansi CRT-DLL version
-      #else        
-        #pragma comment(lib, "StormLibDAS.lib") // Debug Ansi CRT-LIB version
+  #ifndef WDK_BUILD
+    #ifdef _DEBUG                                 // DEBUG VERSIONS
+      #ifndef _UNICODE                           
+        #ifdef _DLL                               
+          #pragma comment(lib, "StormLibDAD.lib") // Debug Ansi CRT-DLL version
+        #else        
+          #pragma comment(lib, "StormLibDAS.lib") // Debug Ansi CRT-LIB version
+        #endif
+      #else
+        #ifdef _DLL                               
+          #pragma comment(lib, "StormLibDUD.lib") // Debug Unicode CRT-DLL version
+        #else        
+          #pragma comment(lib, "StormLibDUS.lib") // Debug Unicode CRT-LIB version
+        #endif
       #endif
-    #else
-      #ifdef _DLL                               
-        #pragma comment(lib, "StormLibDUD.lib") // Debug Unicode CRT-DLL version
-      #else        
-        #pragma comment(lib, "StormLibDUS.lib") // Debug Unicode CRT-LIB version
-      #endif
-    #endif
-  #else                                         // RELEASE VERSIONS
-    #ifndef _UNICODE                            
-      #ifdef _DLL
-        #pragma comment(lib, "StormLibRAD.lib") // Release Ansi CRT-DLL version
-      #else        
-        #pragma comment(lib, "StormLibRAS.lib") // Release Ansi CRT-LIB version
-      #endif
-    #else
-      #ifdef _DLL
-        #pragma comment(lib, "StormLibRUD.lib") // Release Unicode CRT-DLL version
-      #else        
-        #pragma comment(lib, "StormLibRUS.lib") // Release Unicode CRT-LIB version
+    #else                                         // RELEASE VERSIONS
+      #ifndef _UNICODE                            
+        #ifdef _DLL
+          #pragma comment(lib, "StormLibRAD.lib") // Release Ansi CRT-DLL version
+        #else        
+          #pragma comment(lib, "StormLibRAS.lib") // Release Ansi CRT-LIB version
+        #endif
+      #else
+        #ifdef _DLL
+          #pragma comment(lib, "StormLibRUD.lib") // Release Unicode CRT-DLL version
+        #else        
+          #pragma comment(lib, "StormLibRUS.lib") // Release Unicode CRT-LIB version
+        #endif
       #endif
     #endif
   #endif
@@ -140,8 +142,8 @@ extern "C" {
 //-----------------------------------------------------------------------------
 // Defines
 
-#define STORMLIB_VERSION                0x0916  // Current version of StormLib (9.21)
-#define STORMLIB_VERSION_STRING         "9.22"  // String version of StormLib version
+#define STORMLIB_VERSION                0x0917  // Current version of StormLib (9.23)
+#define STORMLIB_VERSION_STRING         "9.23"  // String version of StormLib version
 
 #define ID_MPQ                      0x1A51504D  // MPQ archive header ID ('MPQ\x1A')
 #define ID_MPQ_USERDATA             0x1B51504D  // MPQ userdata entry ('MPQ\x1B')
@@ -156,6 +158,7 @@ extern "C" {
 #define ERROR_FILE_INCOMPLETE            10006  // The required file part is missing
 #define ERROR_UNKNOWN_FILE_NAMES         10007  // A name of at least one file is unknown
 #define ERROR_CANT_FIND_PATCH_PREFIX     10008  // StormLib was unable to find patch prefix for the patches
+#define ERROR_FAKE_MPQ_HEADER            10009  // The header at this position is fake header
 
 // Values for SFileCreateArchive
 #define HASH_TABLE_SIZE_MIN         0x00000004  // Verified: If there is 1 file, hash table size is 4
@@ -476,20 +479,8 @@ typedef void (WINAPI * SFILE_DOWNLOAD_CALLBACK)(void * pvUserData, ULONGLONG Byt
 typedef void (WINAPI * SFILE_ADDFILE_CALLBACK)(void * pvUserData, DWORD dwBytesWritten, DWORD dwTotalBytes, bool bFinalCall);
 typedef void (WINAPI * SFILE_COMPACT_CALLBACK)(void * pvUserData, DWORD dwWorkType, ULONGLONG BytesProcessed, ULONGLONG TotalBytes);
 
-typedef struct TFileStream TFileStream;
-
-//-----------------------------------------------------------------------------
-// Structure for bit arrays used for HET and BET tables
-
-typedef struct _TBitArray
-{
-    DWORD NumberOfBytes;                        // Total number of bytes in "Elements"
-    DWORD NumberOfBits;                         // Total number of bits that are available
-    BYTE Elements[1];                           // Array of elements (variable length)
-} TBitArray;
-
-void GetBits(TBitArray * array, unsigned int nBitPosition, unsigned int nBitLength, void * pvBuffer, int nResultSize);
-void SetBits(TBitArray * array, unsigned int nBitPosition, unsigned int nBitLength, void * pvBuffer, int nResultSize);
+struct TFileStream;
+struct TMPQBits;
 
 //-----------------------------------------------------------------------------
 // Structures related to MPQ format
@@ -627,7 +618,7 @@ typedef struct _TMPQHash
     // The hash of the file path, using method B.
     DWORD dwName2;
 
-#ifdef PLATFORM_LITTLE_ENDIAN
+#ifdef STORMLIB_LITTLE_ENDIAN
 
     // The language of the file. This is a Windows LANGID data type, and uses the same values.
     // 0 indicates the default language (American English), or that the file is language-neutral.
@@ -716,14 +707,14 @@ typedef struct _TMPQHetHeader
 {
     TMPQExtHeader ExtHdr;
 
-    DWORD dwTableSize;                      // Size of the entire HET table, including HET_TABLE_HEADER (in bytes)
-    DWORD dwEntryCount;                     // Number of occupied entries in the HET table
-    DWORD dwTotalCount;                     // Total number of entries in the HET table
-    DWORD dwNameHashBitSize;                // Size of the name hash entry (in bits)
-    DWORD dwIndexSizeTotal;                 // Total size of file index (in bits)
-    DWORD dwIndexSizeExtra;                 // Extra bits in the file index
-    DWORD dwIndexSize;                      // Effective size of the file index (in bits)
-    DWORD dwIndexTableSize;                 // Size of the block index subtable (in bytes)
+    DWORD dwTableSize;                          // Size of the entire HET table, including HET_TABLE_HEADER (in bytes)
+    DWORD dwEntryCount;                         // Number of occupied entries in the HET table
+    DWORD dwTotalCount;                         // Total number of entries in the HET table
+    DWORD dwNameHashBitSize;                    // Size of the name hash entry (in bits)
+    DWORD dwIndexSizeTotal;                     // Total size of file index (in bits)
+    DWORD dwIndexSizeExtra;                     // Extra bits in the file index
+    DWORD dwIndexSize;                          // Effective size of the file index (in bits)
+    DWORD dwIndexTableSize;                     // Size of the block index subtable (in bytes)
 
 } TMPQHetHeader;
 
@@ -732,32 +723,32 @@ typedef struct _TMPQBetHeader
 {
     TMPQExtHeader ExtHdr;
 
-    DWORD dwTableSize;                      // Size of the entire BET table, including the header (in bytes)
-    DWORD dwEntryCount;                     // Number of entries in the BET table. Must match HET_TABLE_HEADER::dwEntryCount
+    DWORD dwTableSize;                          // Size of the entire BET table, including the header (in bytes)
+    DWORD dwEntryCount;                         // Number of entries in the BET table. Must match HET_TABLE_HEADER::dwEntryCount
     DWORD dwUnknown08;
-    DWORD dwTableEntrySize;                 // Size of one table entry (in bits)
-    DWORD dwBitIndex_FilePos;               // Bit index of the file position (within the entry record)
-    DWORD dwBitIndex_FileSize;              // Bit index of the file size (within the entry record)
-    DWORD dwBitIndex_CmpSize;               // Bit index of the compressed size (within the entry record)
-    DWORD dwBitIndex_FlagIndex;             // Bit index of the flag index (within the entry record)
-    DWORD dwBitIndex_Unknown;               // Bit index of the ??? (within the entry record)
-    DWORD dwBitCount_FilePos;               // Bit size of file position (in the entry record)
-    DWORD dwBitCount_FileSize;              // Bit size of file size (in the entry record)
-    DWORD dwBitCount_CmpSize;               // Bit size of compressed file size (in the entry record)
-    DWORD dwBitCount_FlagIndex;             // Bit size of flags index (in the entry record)
-    DWORD dwBitCount_Unknown;               // Bit size of ??? (in the entry record)
-    DWORD dwBitTotal_NameHash2;             // Total bit size of the NameHash2
-    DWORD dwBitExtra_NameHash2;             // Extra bits in the NameHash2
-    DWORD dwBitCount_NameHash2;             // Effective size of NameHash2 (in bits)
-    DWORD dwNameHashArraySize;              // Size of NameHash2 table, in bytes
-    DWORD dwFlagCount;                      // Number of flags in the following array
+    DWORD dwTableEntrySize;                     // Size of one table entry (in bits)
+    DWORD dwBitIndex_FilePos;                   // Bit index of the file position (within the entry record)
+    DWORD dwBitIndex_FileSize;                  // Bit index of the file size (within the entry record)
+    DWORD dwBitIndex_CmpSize;                   // Bit index of the compressed size (within the entry record)
+    DWORD dwBitIndex_FlagIndex;                 // Bit index of the flag index (within the entry record)
+    DWORD dwBitIndex_Unknown;                   // Bit index of the ??? (within the entry record)
+    DWORD dwBitCount_FilePos;                   // Bit size of file position (in the entry record)
+    DWORD dwBitCount_FileSize;                  // Bit size of file size (in the entry record)
+    DWORD dwBitCount_CmpSize;                   // Bit size of compressed file size (in the entry record)
+    DWORD dwBitCount_FlagIndex;                 // Bit size of flags index (in the entry record)
+    DWORD dwBitCount_Unknown;                   // Bit size of ??? (in the entry record)
+    DWORD dwBitTotal_NameHash2;                 // Total bit size of the NameHash2
+    DWORD dwBitExtra_NameHash2;                 // Extra bits in the NameHash2
+    DWORD dwBitCount_NameHash2;                 // Effective size of NameHash2 (in bits)
+    DWORD dwNameHashArraySize;                  // Size of NameHash2 table, in bytes
+    DWORD dwFlagCount;                          // Number of flags in the following array
 
 } TMPQBetHeader;
 
 // Structure for parsed HET table
 typedef struct _TMPQHetTable
 {
-    TBitArray * pBetIndexes;                    // Bit array of FileIndex values
+    TMPQBits * pBetIndexes;                     // Bit array of FileIndex values
     LPBYTE     pNameHashes;                     // Array of NameHash1 values (NameHash1 = upper 8 bits of FileName hashe)
     ULONGLONG  AndMask64;                       // AND mask used for calculating file name hash
     ULONGLONG  OrMask64;                        // OR mask used for setting the highest bit of the file name hash
@@ -773,8 +764,8 @@ typedef struct _TMPQHetTable
 // Structure for parsed BET table
 typedef struct _TMPQBetTable
 {
-    TBitArray * pNameHashes;                    // Array of NameHash2 entries (lower 24 bits of FileName hash)
-    TBitArray * pFileTable;                     // Bit-based file table
+    TMPQBits * pNameHashes;                     // Array of NameHash2 entries (lower 24 bits of FileName hash)
+    TMPQBits * pFileTable;                      // Bit-based file table
     LPDWORD pFileFlags;                         // Array of file flags
 
     DWORD dwTableEntrySize;                     // Size of one table entry, in bits
@@ -934,10 +925,15 @@ typedef struct _SFILE_CREATE_MPQ
 } SFILE_CREATE_MPQ, *PSFILE_CREATE_MPQ;
 
 //-----------------------------------------------------------------------------
+// TMPQBits support - functions
+
+void GetMPQBits(TMPQBits * pBits, unsigned int nBitPosition, unsigned int nBitLength, void * pvBuffer, int nResultByteSize);
+
+//-----------------------------------------------------------------------------
 // Stream support - functions
 
 // Structure used by FileStream_GetBitmap
-typedef struct _TStreamBitmap
+struct TStreamBitmap
 {
     ULONGLONG StreamSize;                       // Size of the stream, in bytes
     DWORD BitmapSize;                           // Size of the block map, in bytes
@@ -946,8 +942,7 @@ typedef struct _TStreamBitmap
     DWORD IsComplete;                           // Nonzero if the file is complete
 
     // Followed by the BYTE array, each bit means availability of one block
-
-} TStreamBitmap;
+};
 
 // UNICODE versions of the file access functions
 TFileStream * FileStream_CreateFile(const TCHAR * szFileName, DWORD dwStreamFlags);
@@ -957,7 +952,7 @@ size_t FileStream_Prefix(const TCHAR * szFileName, DWORD * pdwProvider);
 
 bool FileStream_SetCallback(TFileStream * pStream, SFILE_DOWNLOAD_CALLBACK pfnCallback, void * pvUserData);
 
-bool FileStream_GetBitmap(TFileStream * pStream, void * pvBitmap, DWORD cbBitmap, LPDWORD pcbLengthNeeded);
+bool FileStream_GetBitmap(TFileStream * pStream, void * pvBitmap, DWORD cbBitmap, DWORD * pcbLengthNeeded);
 bool FileStream_Read(TFileStream * pStream, ULONGLONG * pByteOffset, void * pvBuffer, DWORD dwBytesToRead);
 bool FileStream_Write(TFileStream * pStream, ULONGLONG * pByteOffset, const void * pvBuffer, DWORD dwBytesToWrite);
 bool FileStream_SetSize(TFileStream * pStream, ULONGLONG NewFileSize);
@@ -1101,7 +1096,7 @@ int    WINAPI SCompDecompress2(void * pvOutBuffer, int * pcbOutBuffer, void * pv
 //-----------------------------------------------------------------------------
 // Non-Windows support for SetLastError/GetLastError
 
-#ifndef PLATFORM_WINDOWS
+#ifndef STORMLIB_WINDOWS
 
 void  SetLastError(DWORD dwErrCode);
 DWORD GetLastError();
