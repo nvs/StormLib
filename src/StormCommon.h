@@ -75,6 +75,7 @@
 
 typedef enum _MTYPE
 {
+    MapTypeNotChecked,                  // The map type was not checked yet
     MapTypeNotRecognized,               // The file does not seems to be a map
     MapTypeAviFile,                     // The file is actually an AVI file (Warcraft III cinematics)
     MapTypeWarcraft3,                   // The file is a Warcraft III map
@@ -86,7 +87,7 @@ typedef enum _MTYPE
 
 // Size of each signature type
 #define MPQ_WEAK_SIGNATURE_SIZE                 64
-#define MPQ_STRONG_SIGNATURE_SIZE              256 
+#define MPQ_STRONG_SIGNATURE_SIZE              256
 #define MPQ_STRONG_SIGNATURE_ID         0x5349474E      // ID of the strong signature ("NGIS")
 #define MPQ_SIGNATURE_FILE_SIZE (MPQ_WEAK_SIGNATURE_SIZE + 8)
 
@@ -133,7 +134,10 @@ typedef struct _MPQ_SIGNATURE_INFO
 //-----------------------------------------------------------------------------
 // StormLib internal global variables
 
-extern LCID lcFileLocale;                       // Preferred file locale
+extern DWORD g_dwMpqSignature;                  // Marker for MPQ header
+extern DWORD g_dwHashTableKey;                  // Key for hash table
+extern DWORD g_dwBlockTableKey;                 // Key for block table
+extern LCID  g_lcFileLocale;                    // Preferred file locale
 
 //-----------------------------------------------------------------------------
 // Conversion to uppercase/lowercase (and "/" to "\")
@@ -310,7 +314,7 @@ int SCompDecompressMpk(void * pvOutBuffer, int * pcbOutBuffer, void * pvInBuffer
 
 TMPQFile * CreateFileHandle(TMPQArchive * ha, TFileEntry * pFileEntry);
 TMPQFile * CreateWritableHandle(TMPQArchive * ha, DWORD dwFileSize);
-void * LoadMpqTable(TMPQArchive * ha, ULONGLONG ByteOffset, DWORD dwCompressedSize, DWORD dwRealSize, DWORD dwKey, bool * pbTableIsCut);
+void * LoadMpqTable(TMPQArchive * ha, ULONGLONG ByteOffset, LPBYTE pbTableHash, DWORD dwCompressedSize, DWORD dwRealSize, DWORD dwKey, bool * pbTableIsCut);
 int  AllocateSectorBuffer(TMPQFile * hf);
 int  AllocatePatchInfo(TMPQFile * hf, bool bLoadFromFile);
 int  AllocateSectorOffsets(TMPQFile * hf, bool bLoadFromFile);

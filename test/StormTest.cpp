@@ -322,6 +322,8 @@ static bool IsMpqExtension(LPCTSTR szFileName)
             return true;
         if(!_tcsicmp(szExtension, _T(".w3x")))
             return true;
+        if(!_tcsicmp(szExtension, _T(".asi")))
+            return true;
         if(!_tcsicmp(szExtension, _T(".mpqe")))
             return true;
         if(!_tcsicmp(szExtension, _T(".part")))
@@ -331,6 +333,8 @@ static bool IsMpqExtension(LPCTSTR szFileName)
         if(!_tcsicmp(szExtension, _T(".s2ma")))
             return true;
         if(!_tcsicmp(szExtension, _T(".SC2Map")))
+            return true;
+        if(!_tcsicmp(szExtension, _T(".SC2Mod")))
             return true;
         if(!_tcsicmp(szExtension, _T(".0")))        // .MPQ.0
             return true;
@@ -992,7 +996,7 @@ static int VerifyFileMpqHeader(TLogHelper * pLogger, TFileStream * pStream, ULON
     memset(&Header, 0xFE, sizeof(TMPQHeader));
     if(FileStream_Read(pStream, pByteOffset, &Header, sizeof(TMPQHeader)))
     {
-        if(Header.dwID != ID_MPQ)
+        if(Header.dwID != g_dwMpqSignature)
         {
             pLogger->PrintMessage(_T("Read error - the data is not a MPQ header"));
             nError = ERROR_FILE_CORRUPT;
@@ -2120,7 +2124,7 @@ static DWORD TestOnLocalListFile(LPCTSTR szPlainName)
 
     // Get the full name of the local file
     CreateFullPathName(szFileName1, _countof(szFileName1), szMpqSubDir, szPlainName);
-    
+
     // Test opening the local file
     if(SFileOpenFileEx(NULL, szFileName1, SFILE_OPEN_LOCAL_FILE, &hFile))
     {
@@ -2513,7 +2517,7 @@ static DWORD TestArchive(
 
         // Search the archive
         dwErrCode = SearchArchive(&Logger, hMpq, dwSearchFlags, &dwFileCount, OverallMD5);
-        
+
         // Shall we check the file count and overall MD5?
         if(dwExpectedFileCount != 0)
         {
@@ -3110,6 +3114,12 @@ static int ForEachFile_OpenArchive(LPCTSTR szFullPath)
         {
             nError = SearchArchive(&Logger, hMpq, 0, &dwFileCount);
             SFileCloseArchive(hMpq);
+        }
+
+        // Show warning if no files found
+        if(dwFileCount == 0)
+        {
+            Logger.PrintMessage("Warning: no files in the archive");
         }
     }
 
@@ -4237,14 +4247,21 @@ int _tmain(int argc, TCHAR * argv[])
     // Tests on a local listfile
     //
 
-    if(dwErrCode == ERROR_SUCCESS)
-    {
-        dwErrCode = TestOnLocalListFile(_T("ListFile_Blizzard.txt"));
-    }
+    //if(dwErrCode == ERROR_SUCCESS)
+    //{
+    //    dwErrCode = TestOnLocalListFile(_T("ListFile_Blizzard.txt"));
+    //}
 
     //
     // Open all files from the command line
     //
+    /*
+    SFILE_MARKERS Markers = { sizeof(SFILE_MARKERS) };
+    Markers.dwSignature = 'XHSC';
+    Markers.szHashTableKey = "(cash table)";
+    Markers.szBlockTableKey = "(clock table)";
+    SFileSetArchiveMarkers(&Markers);
+    */
 
     for(int i = 1; i < argc; i++)
     {
